@@ -540,11 +540,11 @@ combine-fixing/
 - [ ] Export: Otomatis simpan `.docx` baru dengan hasil dari AI.
 
 ### Phase 3 — Document Merge
-- [ ] Multiple file drop UI
-- [ ] Drag-to-reorder
-- [ ] Rust: merge documents dengan rdocx
-- [ ] Merge configuration (separator type)
-- [ ] Preview merged document
+- [x] Multiple file drop UI
+- [x] Drag-to-reorder
+- [x] Rust: merge documents dengan rdocx
+- [x] Merge configuration (separator type)
+- [x] Preview merged document
 
 ### Phase 4 — Polish & Branding
 - [ ] Dashboard & statistics

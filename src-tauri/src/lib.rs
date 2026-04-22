@@ -4,6 +4,7 @@ pub mod models;
 
 use commands::spellcheck::{init_spellcheck, load_document, scan_document, export_document, save_file_copy, EngineState};
 use commands::ai::fix_document_with_ai;
+use commands::merge::{merge_documents, get_document_preview, validate_docx};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -20,7 +21,10 @@ pub fn run() {
             scan_document,
             export_document,
             fix_document_with_ai,
-            save_file_copy
+            save_file_copy,
+            merge_documents,
+            get_document_preview,
+            validate_docx
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

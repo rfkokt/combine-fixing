@@ -32,22 +32,215 @@ fn emit_progress(app: &AppHandle, current: usize, total: usize, status: &str, fi
 // Stage 1: Auto-fix (Regex-based, no AI)
 // ────────────────────────────────────────────────────────────────
 
-/// Apply simple regex-based fixes to all paragraphs.
-/// Returns a map of paragraph_index -> fixed_text for paragraphs that changed.
+/// Apply comprehensive regex-based fixes to all paragraphs.
+/// Handles common Indonesian patterns that AI often misses.
+/// This is the FREE stage - no API calls needed.
 fn auto_fix_paragraphs(paragraphs: &[DocumentParagraph]) -> HashMap<usize, String> {
-    let double_space_re = Regex::new(r"  +").unwrap();
     let mut fixes = HashMap::new();
 
-    for p in paragraphs {
-        let mut fixed = double_space_re.replace_all(&p.text, " ").to_string();
+    // Skip paragraphs that contain Word field codes (TOC, page numbers, etc.)
+    let field_code_re = Regex::new(r"\\|TOC\s|PAGEN| PAGE |NUMPAGES").unwrap();
 
-        // Trim trailing/leading whitespace within the paragraph
+    // Skip paragraphs that look like TOC entries
+    let toc_dot_leader_re = Regex::new(r"\.\.+\s+\d+$|\.\.+\s+$").unwrap();
+
+    // ========================
+    // ALL REPLACEMENT PATTERNS
+    // ========================
+    // Format: (pattern, replacement)
+    let all_replacements: Vec<(Regex, &str)> = vec![
+        // ========================
+        // SPELLING ERRORS (from analysis)
+        // ========================
+        (Regex::new(r"puskemas").unwrap(), "Puskesmas"),
+        (Regex::new(r"bedasarkan").unwrap(), "berdasarkan"),
+        (Regex::new(r"layaanan").unwrap(), "layanan"),
+        (Regex::new(r"deksripsi").unwrap(), "deskripsi"),
+        (Regex::new(r"menyakjian").unwrap(), "menyajikan"),
+        (Regex::new(r"dijalankann").unwrap(), "dijalankan"),
+        (Regex::new(r"perencaan").unwrap(), "perencanaan"),
+        (Regex::new(r"managemen").unwrap(), "Manajemen"),
+        (Regex::new(r"control").unwrap(), "kontrol"),
+        (Regex::new(r"penomeran").unwrap(), "penomoran"),
+        (Regex::new(r"surveior").unwrap(), "surveyor"),
+        (Regex::new(r"tetang").unwrap(), "tentang"),
+        (Regex::new(r"tuugas").unwrap(), "tugas"),
+        (Regex::new(r"jabalan").unwrap(), "jabatan"),
+        (Regex::new(r"beisi").unwrap(), "berisi"),
+        (Regex::new(r"melibat").unwrap(), "melibatkan"),
+        (Regex::new(r"fasilit as").unwrap(), "fasilitas"),
+        (Regex::new(r"fasilitass").unwrap(), "fasilitas"), // extra s
+        (Regex::new(r"permusnahan").unwrap(), "pemusnahan"),
+        (Regex::new(r"dikendallikan").unwrap(), "dikendalikan"),
+        (Regex::new(r"kualifi kasi").unwrap(), "Kualifikasi"),
+        (Regex::new(r"teridentifi kasi").unwrap(), "teridentifikasi"),
+        (Regex::new(r"paying").unwrap(), "payung"),
+        (Regex::new(r"pijakamatau").unwrap(), "pijakamatau"), // tricky
+
+        // ========================
+        // WORD BLENDS - Common Suffixes (Indonesian)
+        // ========================
+        // Format: find XxxxYyyy where Yyyy is common word
+        (Regex::new(r"yangakan").unwrap(), "yang akan"),
+        (Regex::new(r"yangdan").unwrap(), "yang dan"),
+        (Regex::new(r"yanguntuk").unwrap(), "yang untuk"),
+        (Regex::new(r"yangdengan").unwrap(), "yang dengan"),
+        (Regex::new(r"yangmemerlukan").unwrap(), "yang memerlukan"),
+        (Regex::new(r"dengandan").unwrap(), "dengan dan"),
+        (Regex::new(r"denganuntuk").unwrap(), "dengan untuk"),
+        (Regex::new(r"untukdan").unwrap(), "untuk dan"),
+        (Regex::new(r"untukmenyelesaikan").unwrap(), "untuk menyelesaikan"),
+        (Regex::new(r"volumedengan").unwrap(), "volume dengan"),
+        (Regex::new(r"tahunanuntuk").unwrap(), "tahunan untuk"),
+        (Regex::new(r"pendukungdan").unwrap(), "pendukung dan"),
+        (Regex::new(r"kegiatanyangakan").unwrap(), "kegiatan yang akan"),
+        (Regex::new(r"kegiatanbaruyang").unwrap(), "kegiatan baru yang"),
+        (Regex::new(r"masyarakatakan").unwrap(), "masyarakat akan"),
+        (Regex::new(r"lintassektoral").unwrap(), "lintas sektoral"),
+        (Regex::new(r"analisiskesehatan").unwrap(), "analisis kesehatan"),
+        (Regex::new(r"pengembanganssecara").unwrap(), "pengembangansecara"), // will be fixed below
+        (Regex::new(r"pengembangansecara").unwrap(), "pengembangan secara"),
+        (Regex::new(r"pengembanganssecara").unwrap(), "pengembangan secara"),
+        (Regex::new(r"tahunsebelumnya").unwrap(), "tahun sebelumnya"),
+        (Regex::new(r"terangkumdalamusulan").unwrap(), "terangkum dalamusulan"), // will be fixed below
+        (Regex::new(r"terangkum dalamusulan").unwrap(), "terangkum dalam mengusulkan"),
+        (Regex::new(r"terangkumdalamusulan").unwrap(), "terangkum dalam usulan"),
+        (Regex::new(r"pembiayaandandukungan").unwrap(), "pembiayaan dandukungan"),
+        (Regex::new(r"pembiayaandan").unwrap(), "pembiayaan dan"),
+        (Regex::new(r"baiksecara").unwrap(), "baik secara"),
+        (Regex::new(r"usulanpembiayaan").unwrap(), "usulan pembiayaan"),
+        (Regex::new(r"prasaranadan").unwrap(), "prasarana dan"),
+        (Regex::new(r"telahditetapkan").unwrap(), "telah ditetapkan"),
+        (Regex::new(r"protokolklinis").unwrap(), "protokol klinis"),
+        (Regex::new(r"disampaikanke").unwrap(), "disampaikan ke"),
+        (Regex::new(r"maupunpenulisan").unwrap(), "maupun penulisan"),
+        (Regex::new(r"unitupaya").unwrap(), "unit upaya"),
+        (Regex::new(r"FKTPatau").unwrap(), "FKTP atau"),
+        (Regex::new(r"UKMdengan").unwrap(), "UKM dengan"),
+        (Regex::new(r"perubahandokumen").unwrap(), "perubahan dokumen"),
+        (Regex::new(r"harusdapat").unwrap(), "harus dapat"),
+        (Regex::new(r"Penyimpanandokumen").unwrap(), "Penyimpanan dokumen"),
+        (Regex::new(r"Pendistribusiandokumen").unwrap(), "Pendistribusian dokumen"),
+        (Regex::new(r"PenyusunanPerubahanDokumen").unwrap(), "Penyusunan/Perubahan Dokumen"),
+        (Regex::new(r"PengendaliDokumen").unwrap(), "Pengendali Dokumen"),
+        (Regex::new(r"penomoranDokumen").unwrap(), "penomoran Dokumen"),
+        (Regex::new(r"diberinomor").unwrap(), "diberi nomor"),
+        (Regex::new(r"FKTPagarmembuatkebijakan").unwrap(), "FKTPagar membuat kebijakan"),
+        (Regex::new(r"tatanaskah").unwrap(), "tata naskah"),
+        (Regex::new(r"cekulang").unwrap(), "cek ulang"),
+        (Regex::new(r"menjadidua").unwrap(), "menjadi dua"),
+        (Regex::new(r"yang harusdilakukan").unwrap(), "yang harus dilakukan"),
+        (Regex::new(r"harusdilakukan").unwrap(), "harus dilakukan"),
+        (Regex::new(r"tilikesuaidengan").unwrap(), "tilik sesuai dengan"),
+        (Regex::new(r"perbaikan/revisiisi").unwrap(), "perbaikan/revisi isi"),
+
+        // ========================
+        // MORE WORD BLENDS
+        // ========================
+        // Pijakamatau variations
+        (Regex::new(r"pijakamatau").unwrap(), "pijakam atau"),
+        (Regex::new(r"pijakam atau").unwrap(), "pijakam atau"),
+        // Numbers + words (digit followed by letters)
+        (Regex::new(r"(\d)([a-zA-Z]\w*)").unwrap(), "$1 $2"),  // "2tahun" -> "2 tahun"
+
+        // English blends
+        (Regex::new(r"healthanalysis").unwrap(), "health analysis"),
+        // Revisi blends
+        (Regex::new(r"revisiisi").unwrap(), "revisi isi"),
+        (Regex::new(r"perbaikan/revisi").unwrap(), "perbaikan/revisi"),
+        // Common extra spaces
+        (Regex::new(r"pengesahan").unwrap(), "pengesahan"), // already correct
+
+        // ========================
+        // JATINEGARA BLENDS
+        // ========================
+        (Regex::new(r"Jatinegaradalam").unwrap(), "Jatinegara dalam"),
+        (Regex::new(r"Jatinegaraini").unwrap(), "Jatinegara ini"),
+        (Regex::new(r"Jatinegaraber").unwrap(), "Jatinegara ber"),
+        (Regex::new(r"Jatinegarauntuk").unwrap(), "Jatinegara untuk"),
+        (Regex::new(r"Jatinegarayang").unwrap(), "Jatinegara yang"),
+        (Regex::new(r"Jatinegaradengan").unwrap(), "Jatinegara dengan"),
+        (Regex::new(r"Jatinegaradan").unwrap(), "Jatinegara dan"),
+        (Regex::new(r"Jatinegaraharus").unwrap(), "Jatinegara harus"),
+        (Regex::new(r"Jatinegarabisa").unwrap(), "Jatinegara bisa"),
+        (Regex::new(r"Jatinegarajuga").unwrap(), "Jatinegara juga"),
+        (Regex::new(r"Jatinegarater").unwrap(), "Jatinegara ter"),
+        (Regex::new(r"Jatinegaralebar").unwrap(), "Jatinegara lebar"),
+        (Regex::new(r"Jatinegaradiharapkan").unwrap(), "Jatinegara diharapkan"),
+        (Regex::new(r"Jatinegaraber").unwrap(), "Jatinegara ber"),
+        (Regex::new(r"JatinegaraJatinegara").unwrap(), "Jatinegara Jatinegara"),
+
+        // ========================
+        // CAPITALIZED BLENDS
+        // ========================
+        (Regex::new(r"KesehatanMasyarakat").unwrap(), "Kesehatan Masyarakat"),
+        (Regex::new(r"WaktuPelaksanaan").unwrap(), "Waktu Pelaksanaan"),
+        (Regex::new(r"Kabupaten/Kota.Banyak").unwrap(), "Kabupaten/Kota. Banyak"),
+        (Regex::new(r"Kabupaten/Kota\.").unwrap(), "Kabupaten/Kota. "),
+
+        // ========================
+        // PUNCTUATION + SPACE FIXES
+        // ========================
+        // Missing space after comma/period
+        (Regex::new(r",([a-zA-Z])").unwrap(), ", $1"),
+        (Regex::new(r"\.([A-Za-z])").unwrap(), ". $1"),
+        // Double semicolons
+        (Regex::new(r";;+").unwrap(), ";"),
+        // Double spaces
+        (Regex::new(r"  +").unwrap(), " "),
+        // Double commas
+        (Regex::new(r",,").unwrap(), ","),
+        // Triple dots
+        (Regex::new(r"\.{3,}").unwrap(), "..."),
+    ];
+
+    for p in paragraphs {
+        let text = &p.text;
+
+        // Skip paragraphs with field codes
+        if field_code_re.is_match(text) {
+            continue;
+        }
+
+        // Skip TOC-like entries
+        if toc_dot_leader_re.is_match(text) {
+            continue;
+        }
+
+        // Skip very short paragraphs
+        if text.len() < 5 {
+            continue;
+        }
+
+        let mut fixed = text.clone();
+
+        // Apply ALL replacements with case-insensitive matching
+        for _ in 0..5 {
+            let before = fixed.clone();
+            for (pattern, replacement) in all_replacements.iter() {
+                // Make pattern case-insensitive
+                let pattern_str = pattern.as_str();
+                let case_insensitive_pattern = format!("(?i){}", pattern_str);
+                if let Ok(re) = Regex::new(&case_insensitive_pattern) {
+                    fixed = re.replace_all(&fixed, *replacement).to_string();
+                }
+            }
+            if fixed == before {
+                break;
+            }
+        }
+
+        // Final cleanup: ensure space after punctuation
+        fixed = Regex::new(r",([A-Za-z])").unwrap().replace_all(&fixed, ", $1").to_string();
+        fixed = Regex::new(r"\.([A-Za-z])").unwrap().replace_all(&fixed, ". $1").to_string();
+
+        // Final trim
         let trimmed = fixed.trim().to_string();
         if trimmed != fixed {
             fixed = trimmed;
         }
 
-        if fixed != p.text {
+        if fixed != *text {
             fixes.insert(p.index, fixed);
         }
     }
@@ -103,11 +296,44 @@ async fn process_batch(
     }
 
     let prompt = format!(
-        "Kamu adalah asisten editor profesional. Tugas utama kamu adalah memperbaiki typo, ejaan, kalimat rancu, dan SANGAT PENTING: pisahkan kata-kata yang menempel tanpa spasi (contoh: 'pengembangansecara' harus dipisah menjadi 'pengembangan secara', 'analisiskesehatan' menjadi 'analisis kesehatan').\n\
-        KEMBALIKAN HANYA JSON OBJECT dengan format pasti seperti ini:\n\
-        {{\n  \"revisi\": [\n    {{ \"id\": angka_id, \"text\": \"teks hasil revisi\" }}\n  ]\n}}\n\
-        Jangan kembalikan teks apapun selain JSON. Pastikan semua ID paragraf dikembalikan sesuai urutan. Jika tidak ada revisi, tetap kembalikan ID tersebut dengan teks aslinya.\n\n\
-        Input Paragraf:\n{}",
+        r#"Kamu adalah EDITOR DOKUMEN PROFESIONAL Bahasa Indonesia. Tugas utamamu adalah memperbaiki kesalahan penulisan.
+
+PERATURAN WAJIB (jangan lewatkan!):
+1. Pisahkan kata-kata yang menempel tanpa spasi:
+   - "pengembangansecara" → "pengembangan secara"
+   - "analisiskesehatan" → "analisis kesehatan"
+   - "kegiatanyangakan" → "kegiatan yang akan"
+   - "pendukungdan" → "pendukung dan"
+   - "Jatinegaradalam" → "Jatinegara dalam"
+   - "prasaranadan" → "prasarana dan"
+   - "volumedengan" → "volume dengan"
+   - "tahunanuntuk" → "tahunan untuk"
+   - "KesehatanMasyarakat" → "Kesehatan Masyarakat"
+2. Perbaiki ejaan yang salah:
+   - "Puskemas" → "Puskesmas"
+   - "bedasarkan" → "berdasarkan"
+   - "Managemen" → "Manajemen"
+   - "layaanan" → "layanan"
+   - "deksripsi" → "deskripsi"
+3. Perbaiki spasi setelah tanda baca:
+   - ",yang" → ", yang"
+   - "sarana,yang" → "sarana, yang"
+   - "kebijakan,peraturan" → "kebijakan, peraturan"
+4. Perbaiki spasi sebelum tanda baca:
+   - "Puskesmas  Jatinegara" (spasi ganda) → "Puskesmas Jatinegara"
+5. JANGAN ubah kata yang sudah benar ejaannya
+
+KEMBALIKAN HANYA JSON dengan format ini:
+{{
+  "revisi": [
+    {{ "id": angka_id, "text": "teks hasil revisi" }}
+  ]
+}}
+
+HARUS kembalikan SEMUA ID paragraf yang diberikan, meskipun tidak ada perubahan. Jika paragraf tidak berubah, kembalikan dengan teks aslinya.
+
+Input Paragraf:
+{}"#,
         prompt_input
     );
 
@@ -199,7 +425,14 @@ async fn process_batch(
                                     let fixed_text = text_val.trim().to_string();
 
                                     if let Some(orig_p) = batch.iter().find(|p| p.index == id) {
-                                        if fixed_text != orig_p.text && !fixed_text.is_empty() {
+                                        // Normalize whitespace for comparison (trim and collapse spaces)
+                                        let normalize_ws = |s: &str| -> String {
+                                            s.split_whitespace().collect::<Vec<_>>().join(" ")
+                                        };
+                                        let norm_fixed = normalize_ws(&fixed_text);
+                                        let norm_orig = normalize_ws(&orig_p.text);
+
+                                        if norm_fixed != norm_orig && !fixed_text.is_empty() {
                                             batch_findings.push(TypoFinding {
                                                 id: uuid::Uuid::new_v4().to_string(),
                                                 original: orig_p.text.clone(),
@@ -364,13 +597,129 @@ pub async fn fix_document_with_ai(
         let app_clone = app.clone();
         let check_paras = pre_fixed_paragraphs.clone();
         
+        // Regex patterns to detect word blend issues that dictionary won't catch
+fn has_blend_issues(text: &str) -> bool {
+    // Comprehensive blend patterns from the analysis document
+    // Use contains-style matching (no leading \b) for blends that may be in middle of words
+    let blend_patterns = [
+        // ====================
+        // SPECIFIC KNOWN BLENDS (use word boundaries where possible)
+        // ====================
+        // These patterns look for the blend pattern anywhere in text
+        r"yangakan",
+        r"yangdan",
+        r"yanguntuk",
+        r"yangdengan",
+        r"yangmemerlukan",
+        r"dengandan",
+        r"denganuntuk",
+        r"untukdan",
+        r"untukmenyelesaikan",
+        r"volumedengan",
+        r"tahunanuntuk",
+        r"pendukungdan",
+        r"kegiatankegiatanyangakan",
+        r"kegiatanyangakan",
+        r"kegiatanbaruyang",
+        r"masyarakatakan",
+        r"lintassektoral",
+        r"analisiskesehatan",
+        r"pengembangansecara",
+        r"tahunsebelumnya",
+        r"terangkumdalamusulan",
+        r"pembiayaandandukungan",
+        r"baiksecara",
+        r"usulanpembiayaan",
+        r"prasaranadan",
+        r"telahditetapkan",
+        r"protokolklinis",
+        r"disampaikanke",
+        r"maupunpenulisan",
+        r"unitupaya",
+        r"FKTPatau",
+        r"UKMdengan",
+        r"perubahandokumen",
+        r"harusdapat",
+        r"Penyimpanandokumen",
+        r"Pendistribusiandokumen",
+        r"PenyusunanPerubahanDokumen",
+        r"PengendaliDokumen",
+        r"penomoranDokumen",
+        r"diberinomor",
+        r"FKTPagarmembuatkebijakan",
+        r"tatanaskah",
+        r"cekulang",
+        r"menjadidua",
+        r"dijalankann",
+        r"ylesuai",
+        r"harusdilakukan",
+        r"yangakandilakukan",
+        r"tilikesuaidengan",
+        r"perbaikan/revisiisi",
+        // ====================
+        // JATINEGARA BLENDS (with leading boundary to avoid false matches)
+        // ====================
+        r"\bJatinegara",  // Jatinegara at start of word
+        r"\bJatinegaradalam",
+        r"\bJatinegaraini",
+        r"\bJatinegaraber",
+        r"\bJatinegarauntuk",
+        r"\bJatinegarayang",
+        r"\bJatinegaradengan",
+        r"\bJatinegaradan",
+        r"\bJatinegaraharus",
+        r"\bJatinegarabisa",
+        r"\bJatinegarajuga",
+        r"\bJatinegarater",
+        r"\bJatinegaralebar",
+        r"\bJatinegaradiharapkan",
+        // ====================
+        // CAPITALIZED BLENDS (PascalCase - full word boundary)
+        // ====================
+        r"\b[A-Z][a-z]+[A-Z][a-z]+\b",
+        r"\bKesehatanMasyarakat\b",
+        r"\bWaktuPelaksanaan\b",
+        // ====================
+        // ENGLISH BLENDS
+        // ====================
+        r"\bhealthanalysis\b",
+        // ====================
+        // HYPHENATED ISSUES
+        // ====================
+        r"flow-chart",
+        r"flowchart",
+    ];
+
+    for pattern in blend_patterns.iter() {
+        if let Ok(re) = Regex::new(pattern) {
+            if re.is_match(text) {
+                return true;
+            }
+        }
+    }
+
+    // ====================
+    // MISSING SPACE AFTER PUNCTUATION
+    // ====================
+    // Check for comma/period directly followed by lowercase without space
+    let punct_re = Regex::new(r",[a-z]|\.[a-z]").unwrap();
+    if punct_re.is_match(text) {
+        return true;
+    }
+
+    false
+}
+
         let flagged = tokio::task::spawn_blocking(move || -> Vec<DocumentParagraph> {
             let state = app_clone.state::<EngineState>();
             let checker_guard = state.checker.lock().unwrap();
-            
+
             if let Some(checker) = checker_guard.as_ref() {
                 check_paras.into_iter()
-                    .filter(|p| checker.has_spelling_issues(&p.text))
+                    .filter(|p| {
+                        // Send to AI if: has spelling issues OR has blend patterns
+                        checker.has_spelling_issues(&p.text) || has_blend_issues(&p.text)
+                    })
                     .collect()
             } else {
                 println!("⚠ Checker not initialized — sending all paragraphs to AI");
