@@ -1,0 +1,29 @@
+[package]
+name = "docfixer"
+version = "0.1.0"
+description = "Desktop document processor for merging & typo checking"
+authors = ["rifkioktapratama"]
+edition = "2021"
+
+[lib]
+name = "docfixer_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+regex = "1"
+zip = "2"
+uuid = { version = "1", features = ["v4"] }
+rdocx = "0.1.2"
+docx-lite = "0.2.0"
+spellbook = "0.4.0"
+roxmltree = "0.21.1"

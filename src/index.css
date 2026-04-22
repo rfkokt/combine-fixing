@@ -1,0 +1,310 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════
+   DOCFIXER — KINETIC TECH INDUSTRIAL DESIGN SYSTEM
+   ═══════════════════════════════════════════════════ */
+
+@theme {
+  /* Color Palette */
+  --color-bg-primary: #050505;
+  --color-bg-secondary: #0a0a0a;
+  --color-accent-cyan: #06b6d4;
+  --color-accent-lime: #bef264;
+  --color-text-primary: #F3F4F6;
+  --color-text-muted: rgba(255, 255, 255, 0.5);
+  --color-text-dim: rgba(255, 255, 255, 0.3);
+  --color-border-subtle: rgba(255, 255, 255, 0.1);
+  --color-border-hover: rgba(255, 255, 255, 0.2);
+  --color-surface-card: rgba(255, 255, 255, 0.01);
+  --color-surface-hover: rgba(255, 255, 255, 0.03);
+  --color-surface-nav: rgba(5, 5, 5, 0.7);
+
+  /* Typography */
+  --font-display: "Rajdhani", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-body: "Space Grotesk", sans-serif;
+
+  /* Animations */
+  --ease-expo: cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+/* ─── Base ─── */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+}
+
+/* Disable text selection for app-like feel */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection in content areas */
+.selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ─── Blueprint Grid Background ─── */
+
+.blueprint-grid {
+  position: relative;
+}
+
+.blueprint-grid::before,
+.blueprint-grid::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Small grid */
+.blueprint-grid::before {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 3rem 3rem;
+}
+
+/* Large grid + vignette */
+.blueprint-grid::after {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 12rem 12rem;
+  mask-image: radial-gradient(circle at center, black 30%, transparent 80%);
+}
+
+/* ─── Corner Registration Marks ─── */
+
+.corner-marks {
+  position: relative;
+}
+
+.corner-marks::before,
+.corner-marks::after,
+.corner-marks > .corner-bl,
+.corner-marks > .corner-br {
+  position: absolute;
+  width: 0.75rem;
+  height: 0.75rem;
+  pointer-events: none;
+}
+
+.corner-marks::before {
+  content: "";
+  top: 0;
+  left: 0;
+  border-top: 1px solid var(--color-text-dim);
+  border-left: 1px solid var(--color-text-dim);
+}
+
+.corner-marks::after {
+  content: "";
+  top: 0;
+  right: 0;
+  border-top: 1px solid var(--color-text-dim);
+  border-right: 1px solid var(--color-text-dim);
+}
+
+/* Cyan variant */
+.corner-marks-cyan::before,
+.corner-marks-cyan::after {
+  border-color: var(--color-accent-cyan);
+}
+
+/* ─── Lift Card ─── */
+
+.lift-card {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border-subtle);
+  transition: all 0.5s var(--ease-expo);
+  position: relative;
+  overflow: hidden;
+}
+
+.lift-card:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-hover);
+  transform: perspective(1000px) rotateX(2deg) translateY(-4px);
+  box-shadow: 0 12px 24px rgba(6, 182, 212, 0.15);
+}
+
+/* Sweep effect */
+.lift-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    rgba(6, 182, 212, 0.06) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  transition: transform 0.7s var(--ease-expo);
+}
+
+.lift-card:hover::before {
+  transform: translateX(100%);
+}
+
+/* ─── Buttons ─── */
+
+.btn-primary {
+  background-color: var(--color-accent-cyan);
+  color: var(--color-bg-primary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.625rem 1.5rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-expo);
+}
+
+.btn-primary:hover {
+  background-color: white;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0.625rem 1.5rem;
+  border: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  transition: all 0.3s var(--ease-expo);
+}
+
+.btn-ghost:hover {
+  border-color: var(--color-text-primary);
+}
+
+/* ─── Scan Line Animation ─── */
+
+@keyframes scanline {
+  0% { top: 0; opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.scan-line {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--color-accent-cyan), transparent);
+  box-shadow: 0 0 12px var(--color-accent-cyan);
+  animation: scanline 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* ─── Status Indicators ─── */
+
+.status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background-color: var(--color-accent-lime);
+  box-shadow: 0 0 8px rgba(190, 242, 100, 0.4);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ─── Typography Utilities ─── */
+
+.text-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.text-label {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-size: 0.6875rem;
+}
+
+.text-body {
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+/* ─── Phase Label ─── */
+
+.phase-label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.15em;
+  color: var(--color-accent-cyan);
+  text-transform: uppercase;
+}
+
+/* ─── Severity Highlights ─── */
+
+.typo-error {
+  background: rgba(239, 68, 68, 0.15);
+  border-bottom: 2px solid #ef4444;
+  padding: 0 2px;
+}
+
+.typo-warning {
+  background: rgba(234, 179, 8, 0.15);
+  border-bottom: 2px solid #eab308;
+  padding: 0 2px;
+}
+
+.typo-info {
+  background: rgba(59, 130, 246, 0.15);
+  border-bottom: 2px solid #3b82f6;
+  padding: 0 2px;
+}
