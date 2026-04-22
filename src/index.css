@@ -308,3 +308,11 @@ body {
   border-bottom: 2px solid #3b82f6;
   padding: 0 2px;
 }
+
+/* ─── AI Progress Scan Sweep ─── */
+
+@keyframes scan-sweep {
+  0% { top: 0; }
+  50% { top: 100%; }
+  100% { top: 0; }
+}

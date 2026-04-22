@@ -19,7 +19,7 @@ impl CheckerEngine {
         }
     }
 
-    pub fn scan_paragraph(&self, paragraph: &DocumentParagraph) -> Vec<TypoFinding> {
+    pub fn scan_paragraph(&self, paragraph: &DocumentParagraph, suggest_cache: &mut std::collections::HashMap<String, String>) -> Vec<TypoFinding> {
         let mut findings = Vec::new();
         let text = &paragraph.text;
 
@@ -50,9 +50,21 @@ impl CheckerEngine {
                 continue;
             }
 
+            // Skip ALL UPPERCASE acronyms
+            let is_acronym = word.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_uppercase());
+            if is_acronym {
+                continue;
+            }
+
             if !self.spell_engine.is_valid_word(word) {
-                let suggestions = self.spell_engine.suggest(word);
-                let suggestion = suggestions.first().cloned().unwrap_or_else(|| String::new());
+                let suggestion = if let Some(cached) = suggest_cache.get(word) {
+                    cached.clone()
+                } else {
+                    let suggestions = self.spell_engine.suggest(word);
+                    let sugg = suggestions.first().cloned().unwrap_or_else(|| String::new());
+                    suggest_cache.insert(word.to_string(), sugg.clone());
+                    sugg
+                };
 
                 findings.push(TypoFinding {
                     id: Uuid::new_v4().to_string(),
@@ -72,6 +84,30 @@ impl CheckerEngine {
         }
 
         findings
+    }
+
+    /// Fast check: does this text have any words not in the dictionary?
+    /// Used for pre-filtering in the hybrid pipeline — returns early on first miss.
+    pub fn has_spelling_issues(&self, text: &str) -> bool {
+        for mat in self.word_regex.find_iter(text) {
+            let word = mat.as_str();
+            
+            // Skip numbers and short words
+            if word.chars().all(|c| c.is_numeric()) || word.len() <= 2 {
+                continue;
+            }
+
+            // Skip ALL UPPERCASE acronyms
+            let is_acronym = word.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_uppercase());
+            if is_acronym {
+                continue;
+            }
+
+            if !self.spell_engine.is_valid_word(word) {
+                return true;
+            }
+        }
+        false
     }
 
     fn get_context(&self, text: &str, start: usize, end: usize) -> String {

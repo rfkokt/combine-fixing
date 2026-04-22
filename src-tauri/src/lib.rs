@@ -2,7 +2,8 @@ pub mod commands;
 pub mod engine;
 pub mod models;
 
-use commands::spellcheck::{init_spellcheck, scan_document, EngineState};
+use commands::spellcheck::{init_spellcheck, load_document, scan_document, export_document, save_file_copy, EngineState};
+use commands::ai::fix_document_with_ai;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -15,7 +16,11 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             init_spellcheck,
-            scan_document
+            load_document,
+            scan_document,
+            export_document,
+            fix_document_with_ai,
+            save_file_copy
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

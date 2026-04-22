@@ -1,7 +1,6 @@
 import { useAppStore } from "@/stores/app-store";
 import type { PageId } from "@/lib/types";
 import {
-  FileText,
   GitMerge,
   SpellCheck,
   Settings,

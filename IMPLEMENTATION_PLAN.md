@@ -402,37 +402,31 @@ graph LR
 
 ### 2. 🔍 Typo Checker (Hybrid: Dictionary + AI)
 
-**Scan Mode 1 — Quick Scan (Offline, Dictionary-based)**
-- Pakai `spellbook` + Hunspell dictionaries (id_ID + en_US)
-- Custom rules engine (regex patterns)
-- Instant, tanpa internet
-- Detect: ejaan salah, spasi ganda, prefiks dipisah, kata menempel
+**Scan Mode 1 — Quick Profiler (Offline, Dictionary-based)**
+- Pakai `spellbook` + Hunspell dictionaries (id_ID)
+- Scan cepat untuk menghasilkan **Summary** (bukan list satu per satu).
+- Summary berisi: statistik typo, daftar kata asing yang paling sering muncul, dan jumlah spasi ganda.
+- Tujuannya hanya untuk "profiling" seberapa kotor dokumen tersebut.
 
-**Scan Mode 2 — Deep Scan (Online, AI-powered)**
-- Kirim paragraf ke AI API (OpenAI / Gemini / Claude — user pilih)
-- Context-aware: pahami makna kalimat, grammar, kata yang ambigu
-- Detect: grammar errors, kalimat rancu, konteks salah, kata menempel yang kompleks
-- User masukin API key sendiri di Settings
+**Scan Mode 2 — AI Auto-Fix (Online)**
+- Berdasarkan hasil summary, user bisa klik "Analyze & Fix with AI".
+- Kirim teks per paragraf ke AI (OpenAI / Claude / Gemini).
+- AI otomatis membetulkan ejaan, kalimat rancu, spasi ganda, dan tata bahasa sesuai konteks.
+- Menghasilkan dokumen bersih tanpa perlu user klik *accept/reject* manual ribuan kali.
 
 **Preview & Review:**
-- **Inline diff view** — teks asli dengan highlight warna per severity:
-  - 🔴 Error (pasti salah) — merah
-  - 🟡 Warning (mungkin salah) — kuning
-  - 🔵 Info / AI suggestion — biru
-- **Side panel** — daftar temuan dengan original → suggested
-- **Accept / Reject / Ignore** per koreksi
-- **Batch accept all** untuk yang high-confidence
-- **"Add to Dictionary"** untuk kata yang valid tapi nggak dikenal
+- **Summary Dashboard** — grafik/angka seberapa banyak typo per kategori.
+- **Side panel** — Menampilkan summary kata-kata bermasalah.
+- **AI Action** — Tombol untuk mengeksekusi perbaikan otomatis via AI.
 
 ### 3. 📊 Dashboard
 - Statistik typo per dokumen
-- Progress tracking (berapa % yang sudah di-review)
+- Progress tracking
 - History koreksi terakhir
 
 ### 4. 📊 .xlsx Support
 - Baca spreadsheet cell-by-cell (`calamine` crate)
 - Scan typo per cell (skip cells yang isinya angka/formula)
-- Preview: highlight cells yang ada typo
 - Export fixed `.xlsx` (`rust_xlsxwriter` crate)
 
 ---
@@ -451,13 +445,10 @@ flowchart TD
     C3 --> C4[Export .docx]
     
     D --> D1["Drop/Select File (.docx / .xlsx)"]
-    D1 --> D2[Quick Scan - Dictionary]
-    D2 --> D3{Deep Scan?}
-    D3 -->|Yes| D4[AI Deep Scan]
-    D3 -->|No| D5[Preview Results]
-    D4 --> D5
-    D5 --> D6[Review: Accept/Reject Each]
-    D6 --> D7[Export Fixed File]
+    D1 --> D2[Quick Profiling Scan]
+    D2 --> D3[Display Summary Dashboard]
+    D3 --> D4[Analyze & Fix with AI]
+    D4 --> D5[Export Clean Document]
 ```
 
 ---
@@ -534,51 +525,37 @@ combine-fixing/
 - [x] Setup Tauri 2.x project (React + TypeScript + Vite)
 - [x] Setup Tailwind + Shadcn/ui + KINETIC design system
 - [x] Desktop sidebar layout (fixed 240px sidebar + main content)
-- [ ] Implement file drop & selection UI (Tauri file dialog)
+- [x] Implement file drop & selection UI (Tauri file dialog)
 - [x] Rust: baca .docx dengan `rdocx`, extract text dengan `docx-lite` (menggunakan roxmltree)
-- [x] Rust: basic spell check dengan `spellbook` + id_ID dictionary
-- [ ] Display typo list di frontend dengan accept/reject
-- [ ] Export fixed .docx
+- [x] Rust: basic spell check dengan `spellbook` + id_ID dictionary (dipakai untuk quick profiling)
+- [x] Display UI di frontend
+- [x] Export fixed .docx logic
 
-### Phase 2 — Document Merge
+### Phase 2 — AI Auto-Fix Integration (PIVOT)
+- [ ] UI Settings: Input API Key (OpenAI) dan simpan aman di local storage.
+- [ ] UI Spellcheck: Hapus panel "Accept/Reject", ganti dengan panel "Summary Profiling" dan tombol "Fix with AI".
+- [ ] Rust: Implementasi HTTP client (`reqwest`) ke OpenAI API.
+- [ ] Rust: Loop per paragraf, kirim ke prompt AI ("Perbaiki typo, tata bahasa, dan kalimat rancu...").
+- [ ] Frontend: Progress bar real-time saat AI memproses paragraf demi paragraf.
+- [ ] Export: Otomatis simpan `.docx` baru dengan hasil dari AI.
+
+### Phase 3 — Document Merge
 - [ ] Multiple file drop UI
 - [ ] Drag-to-reorder
 - [ ] Rust: merge documents dengan rdocx
 - [ ] Merge configuration (separator type)
 - [ ] Preview merged document
 
-### Phase 3 — Advanced Typo Detection + .xlsx
-- [ ] Custom rules engine (pattern-based: kata menempel, prefiks, dll.)
-- [ ] Custom dictionary management UI
-- [ ] Inline diff view dengan color-coded severity highlights
-- [ ] Severity levels (error/warning/info)
-- [ ] Batch operations (accept all high-confidence)
-- [ ] `.xlsx` support: baca cells (`calamine`), scan, export fixed (`rust_xlsxwriter`)
-
-### Phase 3.5 — AI Integration
-- [ ] Settings page: API key input (OpenAI / Gemini / Claude)
-- [ ] AI provider selector UI
-- [ ] Rust: HTTP client (`reqwest`) → AI API call
-- [ ] "Deep Scan" button: kirim paragraf ke AI, parse response
-- [ ] Merge AI results dengan dictionary results di review panel
-- [ ] Rate limiting & error handling (API down, quota habis)
-
 ### Phase 4 — Polish & Branding
 - [ ] Dashboard & statistics
-- [ ] Keyboard shortcuts (⌘+O / Ctrl+O open, ⌘+S / Ctrl+S save, etc.)
-- [ ] Auto-update (Tauri updater plugin)
 - [ ] App icon & branding (dark-only design, sesuai KINETIC aesthetic)
 - [ ] Scanning animation (scan-line sweep, phase HUD)
-- [ ] Blueprint grid background + corner marks on all sections
 - [ ] Lift-card hover effects on all interactive elements
 
 ### Phase 5 — CI/CD & Windows Distribution
 - [ ] Setup GitHub Actions build matrix (macOS + Windows)
 - [ ] macOS: `.dmg` untuk Apple Silicon + Intel
 - [ ] Windows: `.msi` + `.exe` (NSIS installer)
-- [ ] Auto-release ke GitHub Releases on tag push
-- [ ] Code signing (opsional, Apple notarization + Windows Authenticode)
-- [ ] Tauri auto-updater integration
 
 ---
 
