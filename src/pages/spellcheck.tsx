@@ -3,77 +3,14 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useSpellcheckStore, ScanResult, DocumentInfo, TypoFinding } from "../stores/spellcheck-store";
+import { PRESET_PROVIDERS } from "../lib/providers";
+import { toast } from "sonner";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 interface AiFixResult {
   message: string;
   findings: TypoFinding[];
 }
-import { toast } from "sonner";
-import { useEffect, useState, useRef, useCallback } from "react";
-
-const PRESET_PROVIDERS = [
-  {
-    id: 'groq',
-    name: 'Groq (Fast & Free)',
-    baseUrl: 'https://api.groq.com/openai/v1',
-    models: [
-      'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant',
-      'gemma2-9b-it',
-      'mixtral-8x7b-32768'
-    ]
-  },
-  {
-    id: 'openai',
-    name: 'OpenAI',
-    baseUrl: 'https://api.openai.com/v1',
-    models: [
-      'gpt-4o',
-      'gpt-4o-mini',
-      'o3-mini',
-      'o1',
-      'o1-mini',
-      'gpt-3.5-turbo'
-    ]
-  },
-  {
-    id: 'minimax',
-    name: 'MiniMax',
-    baseUrl: 'https://api.minimax.io/v1/text/chatcompletion_v2',
-    models: [
-      'MiniMax-M2.7',
-      'MiniMax-M2.7-highspeed',
-      'MiniMax-M2.5',
-      'MiniMax-M2.5-highspeed',
-      'MiniMax-M2-her',
-      'MiniMax-M2.1',
-      'MiniMax-M2'
-    ]
-  },
-  {
-    id: 'zai',
-    name: 'Z.ai (Zhipu AI)',
-    baseUrl: 'https://api.z.ai/api/coding/paas/v4',
-    models: [
-      'glm-4.7',
-      'glm-4.6',
-      'glm-4.5-Flash',
-      'glm-4.5-Air',
-      'glm-4.5-X',
-      'glm-5.1',
-      'glm-5',
-      'glm-z1-flash',
-      'glm-z1-air',
-      'glm-z1-airx'
-    ]
-  },
-  {
-    id: 'custom',
-    name: 'Custom / Other',
-    baseUrl: '',
-    models: []
-  }
-];
 
 interface AiProgress {
   current: number;
@@ -118,7 +55,6 @@ export function SpellcheckPage() {
   const { currentDocument, findings, isScanning, setScanning, setScanResult, setCurrentDocument, clear } = useSpellcheckStore();
   
   // AI Config State
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('openai_api_key') || '');
   const [providerId, setProviderId] = useState(() => localStorage.getItem('ai_provider') || 'groq');
   const [baseUrl, setBaseUrl] = useState(() => localStorage.getItem('ai_base_url') || 'https://api.groq.com/openai/v1');
   const [model, setModel] = useState(() => localStorage.getItem('ai_model') || 'llama-3.3-70b-versatile');
@@ -133,7 +69,6 @@ export function SpellcheckPage() {
 
   const handleConfigChange = (key: string, value: string) => {
     localStorage.setItem(key, value);
-    if (key === 'openai_api_key') setApiKey(value);
     if (key === 'ai_provider') setProviderId(value);
     if (key === 'ai_base_url') setBaseUrl(value);
     if (key === 'ai_model') setModel(value);
@@ -239,12 +174,6 @@ export function SpellcheckPage() {
 
   const handleAIFix = async () => {
     if (!currentDocument) return;
-    
-    // Check API key for modes that need it
-    if (selectedMode.needsApi && !apiKey) {
-      toast.error('Please enter your API Key first (required for Smart Fix and Deep Fix)');
-      return;
-    }
 
     try {
       const outputPath = currentDocument.path.replace(/\.docx$/i, '_fixed.docx');
@@ -257,10 +186,20 @@ export function SpellcheckPage() {
       const modeLabel = selectedMode.label;
       toast.info(`${modeLabel}: Processing your document...`, { id: 'ai-toast', duration: 300000 });
 
+      // Fetch API key for the selected provider only
+      const currentApiKey = localStorage.getItem(`ai_api_key_${providerId}`) || '';
+      
+      if (selectedMode.needsApi && !currentApiKey) {
+        toast.error(`Missing API Key for ${selectedProvider.name}. Please set it in Settings.`, { id: 'ai-toast' });
+        setScanning(false);
+        setAiProgress(null);
+        return;
+      }
+
       const result: AiFixResult = await invoke('fix_document_with_ai', {
         inputPath: currentDocument.path,
         outputPath: outputPath,
-        apiKey: apiKey,
+        apiKey: currentApiKey,
         baseUrl: baseUrl,
         model: model,
         fixMode: fixMode
@@ -654,19 +593,8 @@ export function SpellcheckPage() {
                   )}
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[0.6rem] text-text-dim block">API KEY</label>
-                  <input 
-                    type="password" 
-                    value={apiKey}
-                    onChange={(e) => handleConfigChange('openai_api_key', e.target.value)}
-                    placeholder="sk-..."
-                    className="w-full bg-bg-primary border border-border-subtle p-2 text-sm text-text-primary focus:outline-none focus:border-accent-cyan transition-colors"
-                  />
-                </div>
-              
                 <p className="text-[0.6rem] text-text-dim leading-relaxed">
-                  Keys are stored locally. Supports OpenAI, MiniMax, Z.ai, or any compatible API.
+                  API Key untuk {selectedProvider.name} bisa dikonfigurasi di halaman <span className="text-accent-cyan">SETTINGS</span>.
                 </p>
               </div>
             </div>

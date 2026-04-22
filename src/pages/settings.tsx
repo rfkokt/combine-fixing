@@ -1,7 +1,30 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { PRESET_PROVIDERS } from '../lib/providers';
+
+const PROVIDERS = PRESET_PROVIDERS;
 
 export function SettingsPage() {
   const [saved, setSaved] = useState(false);
+  const [keys, setKeys] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const loadedKeys: Record<string, string> = {};
+    PROVIDERS.forEach(p => {
+      // Migrate old key if exists
+      let key = localStorage.getItem(`ai_api_key_${p.id}`);
+      if (!key && localStorage.getItem('openai_api_key') && (p.id === 'groq' || p.id === localStorage.getItem('ai_provider'))) {
+          key = localStorage.getItem('openai_api_key');
+          if (key) localStorage.setItem(`ai_api_key_${p.id}`, key);
+      }
+      loadedKeys[p.id] = key || '';
+    });
+    setKeys(loadedKeys);
+  }, []);
+
+  const handleKeyChange = (id: string, value: string) => {
+    setKeys(prev => ({ ...prev, [id]: value }));
+    localStorage.setItem(`ai_api_key_${id}`, value);
+  };
 
   const handleSave = () => {
     setSaved(true);
@@ -67,12 +90,27 @@ export function SettingsPage() {
           </div>
         </div>
 
-        {/* Info */}
+        {/* API Keys */}
         <div className="border border-border-subtle p-6">
-          <h3 className="text-label text-text-primary mb-4">AI PROVIDER</h3>
-          <p className="text-body text-sm text-text-muted">
-            Konfigurasi AI provider (API key, model, base URL) ada di panel kanan halaman <span className="text-accent-cyan">SPELLCHECK</span>.
+          <h3 className="text-label text-text-primary mb-4">API KEYS</h3>
+          <p className="text-body text-sm text-text-muted mb-6">
+            Masukkan API Key untuk masing-masing provider. Kunci akan disimpan secara lokal di browser kamu.
           </p>
+          
+          <div className="space-y-4">
+            {PROVIDERS.map(provider => (
+              <div key={provider.id} className="flex flex-col gap-1">
+                <label className="text-xs text-text-primary">{provider.name}</label>
+                <input
+                  type="password"
+                  value={keys[provider.id] || ''}
+                  onChange={(e) => handleKeyChange(provider.id, e.target.value)}
+                  placeholder={`API Key untuk ${provider.name}...`}
+                  className="w-full bg-transparent border border-border-subtle px-4 py-2 text-body text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent-cyan transition-colors selectable"
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

@@ -13,9 +13,9 @@ function ActionCard({ phase, title, subtitle, icon, onClick }: ActionCardProps) 
   return (
     <button
       onClick={onClick}
-      className="lift-card corner-marks corner-marks-cyan p-8 text-left cursor-pointer group w-full"
+      className="lift-card corner-marks corner-marks-cyan p-8 lg:p-10 text-left cursor-pointer group w-full"
     >
-      <span className="phase-label text-sm">{phase}</span>
+      <span className="phase-label text-sm mb-2 block">{phase}</span>
       <div className="mt-4 flex items-center gap-4">
         <div className="text-accent-cyan">{icon}</div>
         <div>
@@ -80,7 +80,7 @@ export function HomePage() {
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="flex items-center justify-between px-5 py-3 border-b border-border-subtle last:border-b-0 hover:bg-surface-hover transition-colors"
+                className="flex items-center justify-between px-6 py-4 border-b border-border-subtle last:border-b-0 hover:bg-surface-hover transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <div className="status-dot" />

@@ -423,7 +423,9 @@ pub async fn fix_document_with_ai(
     }
 
     let mut endpoint = base_url.trim_end_matches('/').to_string();
-    if !endpoint.ends_with("/chat/completions") && !endpoint.ends_with("/chatcompletion_v2") {
+    if !endpoint.ends_with("/chat/completions") 
+        && !endpoint.ends_with("/chatcompletion_v2") 
+    {
         endpoint.push_str("/chat/completions");
     }
 
@@ -437,7 +439,7 @@ pub async fn fix_document_with_ai(
     println!("\nStage 3: Sending {} batches to AI (model: {})", total_batches, model);
 
     emit_progress(&app, 0, total_batches, "processing", auto_fix_count,
-        &format!("Stage 3: Processing {} AI batches (5x concurrent)...", total_batches));
+        &format!("Stage 3: Processing {} AI batches...", total_batches));
 
     // Concurrent processing with early termination
     let concurrency = 1; // Reduced to avoid rate limits
